@@ -1,11 +1,9 @@
 
 from vkbottle.bot import Bot,Message
 from vkbottle import Keyboard,KeyboardButtonColor,Text,OpenLink,BaseStateGroup,CtxStorage
-from vkbottle import PhotoMessageUploader
 
-import requests
-import time
-import json
+from API_SJ_REQUEST import *
+import datetime
 bot=Bot(token='vk1.a.gC18gjaTqfcql01jYmAv87GwsY7azlNlgGH2dEQVR06UXYCaEkSZSeXEhsom4wBYHNWkNcBp1T7SdGMD8E7ZPEWnT2TNnMBHG0CuaDAfwe4imZ757iMsCQmnuVkqWGJAIW62IW9bxs4JliThV_krBJPBz6scsVZUZ44hBAgfx8RGfEkhLUjeWuN3X-YWyE_zmVDYjepPxfYHrvFUNe5ptQ')
 ctx=CtxStorage()
 
@@ -23,24 +21,7 @@ class SUBSDSATA(BaseStateGroup):
 
 # API запрос к SJ
 #--------------------------------------------------------------
-def getinfo(keyword,town,payment):
-                    params = {
-                    'payment_from':f'{payment}',
-                    "sort_new": time.time(),
-                    "keyword":f"{keyword}",
-                    "town":f'{town}'
-                    }
-                    headers={
-                    'X-Api-App-Id': "v3.r.130155215.a338c216d6fb51385312670e906c0b708b7c3e2b.3be37d75e69e47c96e6e44000d613035b9d07b00",
-                    'Authorization': "Bearer v3.r.130155215.eab298d92cb901aced882c514dc818cf46f86c12.ce283e8e18c56e10028a9b45c87d9bcc6b98959d"
-                     }
-                    endpoint = "https://api.superjob.ru/2.0/vacancies/"
-                    response = requests.get(endpoint, headers=headers, params=params,).json()
-                    resjson_form = json.dumps(response, ensure_ascii=False, indent=2)
-                    pyform = json.loads(resjson_form)
-                    newvacancy=pyform['objects']
-                    ctx.set('newvacancy',newvacancy)
-                    return newvacancy
+
 
 
 
@@ -163,49 +144,29 @@ async def initial_handler(message:Message):
     newvacancy = getinfo(ctx.get('prof'), ctx.get('city'), ctx.get('pay'))
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     lenlist=len(newvacancy)
     ctx.set('newvacancy', newvacancy)
     ctx.set('len',lenlist)
-    u=message.payload
+
+
     # разбивка
     # ------------------------------------------------
     d=0
     await message.answer(f"Ваши параметры🎲:\nГород 🌁:{ctx.get('city')}\nПрофессия👨‍💻:{ctx.get('prof')}\nЗарплата💲 от: {ctx.get('pay')}\n Ожидайте выдачу🕒",keyboard=keyboard)
-    ctx.set('num', 0)
-    # await message.answer('🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢')
-    time.sleep(1)
+    ctx.set('num', d)
     try:
-        while d <= 5 and d<=ctx.get("len") :
+        while d < 5 and d<=ctx.get("len") :
                 # if ctx.get("len") ==0:
                 #     await message.answer('Извините, мы не нашли вакансий согласно вашим параметрам\n Напишите "Начать"',keyboard=keyboard)
                 #     break
                 # elif ctx.get("len") < 5 and ctx.get("len")!=0:
                 #     await message.answer(f'Вакансия {ctx.get("num")+1} из {ctx.get("len")}:')
                 # else:
-                #     await message.answer(f'Вакансия {ctx.get("num")+1} из {5}:')
+                await message.answer(f'Вакансия {ctx.get("num")+1} из {5}:')
+                print(newvacancy[ctx.get("num")])
                 profession = newvacancy[ctx.get("num")]['profession']
                 link = newvacancy[ctx.get("num")]['link']
-                # s = pyshorteners.Shortener()
-                # link = s.tinyurl.short(
-                #     f"{link}")
+
                 keyboard1=(Keyboard(inline=True)
                            .add(OpenLink(link,'Открыть🚀'))
                            )
@@ -214,14 +175,12 @@ async def initial_handler(message:Message):
                 if payment=='0 - 0':
                     payment='После собеседования'
                 company = newvacancy[ctx.get('num')]["firm_name"]
-
+                d += 1
                 ctx.set('num', d)
                 await message.answer (f"💼Вакансия: {profession} \n 🏙Компания:{company} \n 💲Условия оплаты: {payment} \n 🔜Оставить заявку и узнать подробне о вакансии:",keyboard=keyboard1)
 
-                time.sleep(1)
-                d += 1
         ctx.set('num', 0)
-        await message.answer('Пока всё✔ Нажмите "Искать🔍"',keyboard=keyboard)
+        await message.answer('Пока всё✔ Нажмите "Искать"',keyboard=keyboard)
     except IndexError:
 
         await message.answer('Извините, мы не нашли вакансий согласно вашим параметрам\n Напишите "Искать🔍"',keyboard=keyboard)
