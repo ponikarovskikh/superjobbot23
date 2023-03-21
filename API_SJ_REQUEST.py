@@ -72,6 +72,8 @@ def getinfo(keyword, town, payment):
             return newvacancy
 
 
+def checking_updates():
+    pass
 
 
 

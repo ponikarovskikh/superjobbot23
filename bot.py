@@ -3,7 +3,7 @@ from vkbottle.bot import Bot,Message
 from vkbottle import Keyboard,KeyboardButtonColor,Text,OpenLink,BaseStateGroup,CtxStorage
 
 from API_SJ_REQUEST import *
-import datetime
+from datetime import datetime
 bot=Bot(token='vk1.a.gC18gjaTqfcql01jYmAv87GwsY7azlNlgGH2dEQVR06UXYCaEkSZSeXEhsom4wBYHNWkNcBp1T7SdGMD8E7ZPEWnT2TNnMBHG0CuaDAfwe4imZ757iMsCQmnuVkqWGJAIW62IW9bxs4JliThV_krBJPBz6scsVZUZ44hBAgfx8RGfEkhLUjeWuN3X-YWyE_zmVDYjepPxfYHrvFUNe5ptQ')
 ctx=CtxStorage()
 
@@ -14,8 +14,11 @@ class SUBSDSATA(BaseStateGroup):
     CITY=0
     PROF=1
     PAY=2
-    FINISH=4
+    GO=4
     GET = 3
+    CONT=5
+    UPDATE=6
+    BACK=7
 
 
 
@@ -27,7 +30,7 @@ class SUBSDSATA(BaseStateGroup):
 
 # 0 этап главное меню
 # ----------------------------------------------
-@bot.on.message(payload={'cmd':'start'})
+@bot.on.message(state=None,payload={'{"command":"start"}'})
 @bot.on.message(text=['Начать','начать'])
 async def starthandler(message:Message):
     flag=False
@@ -63,7 +66,7 @@ async def city_handler(message:Message):
 
         )
     # photo1= await photo_upd.upload('logo1.jpg')
-    await message.answer("Найти вакансии? Я это могу! Приступим? Выбирай город из списка или пиши вручную 🧭🌁", keyboard=keyboard)
+    await message.answer("Найти вакансии? Я это могу! Приступим? Выбирай город из списка или пиши вручную 🧭🌁", keyboard=keyboard,attachment='photo-217363563_457239024')
     await bot.state_dispenser.set(message.peer_id,SUBSDSATA.PROF)
 
 
@@ -94,7 +97,7 @@ async def prof_handler(message:Message):
             .add(Text('Продавец'))
                )
 
-    await message.answer('Теперь определись с профессией или напиши свой вариант‍🚀',keyboard=keyboarad)
+    await message.answer('Теперь определись с профессией или напиши свой вариант‍🚀',keyboard=keyboarad,attachment='photo-217363563_457239025')
     await bot.state_dispenser.set(message.peer_id,SUBSDSATA.PAY)
 
 # 3 этап получение инфы о желаемом заработке
@@ -102,131 +105,184 @@ async def prof_handler(message:Message):
 
 @bot.on.message(state=SUBSDSATA.PAY)
 async def pay_handler(message:Message):
-
-
     ctx.set('prof',message.text)
-    keyboarad = (Keyboard(inline=True)
-                 .add(Text('10 000₽'))
-                 .add(Text('20 000₽'))
+    keyboarad0 = (Keyboard(inline=True)
+                 .add(Text('10 000₽',{'cmd':'edit'}))
+                 .add(Text('20 000₽',{'cmd':'edit'}))
                  .row()
-                 .add(Text('30 000₽'))
-                 .add(Text('50 000₽'))
+                 .add(Text('30 000₽',{'cmd':'edit'}))
+                 .add(Text('50 000₽',{'cmd':'edit'}))
                  .row()
-                 .add(Text('80 000₽'))
-                 .add(Text('100 000₽'))
+                 .add(Text('80 000₽',{'cmd':'edit'}))
+                 .add(Text('100 000₽',{'cmd':'edit'}))
                  .row()
-                 .add(Text('150 000₽'))
-                 .add(Text('200 000₽'))
+                 .add(Text('150 000₽',{'cmd':'edit'}))
+                 .add(Text('200 000₽',{'cmd':'edit'}))
                  .row()
-                 .add(Text('300 000₽'))
-                 .add(Text('400 000₽'))   )
-    await message.answer('Сколько денег хочешь зарабатывать? Выбери или напиши вручную 💵', keyboard=keyboarad)
+                 .add(Text('300 000₽',{'cmd':'edit'}))
+                 .add(Text('400 000₽',{'cmd':'edit'}))   )
+    ctx.set('pay', None)
+    await message.answer('Сколько денег хочешь зарабатывать? Выбери или напиши вручную 💵', keyboard=keyboarad0,attachment='photo-217363563_457239026')
     await bot.state_dispenser.set(message.peer_id, SUBSDSATA.GET)
+
+
 # обработка и выдача Результата
 # ------------------------------------------
 
 
-@bot.on.message(state=SUBSDSATA.GET)
+@bot.on.message(state=SUBSDSATA.GET,payload={'cmd':'edit'})
 async def initial_handler(message:Message):
-    pay = message.text
-    pay = pay.rstrip('₽').replace(' ', '')
-    ctx.set('pay', pay)
-
-
-    keyboard = (Keyboard(one_time=False)
-                .add(Text('Искать🔍',{'cmd':'reg'}),color=KeyboardButtonColor.PRIMARY)
+    if ctx.get('pay') ==None:
+        pay = message.text
+        pay = pay.rstrip('₽').replace(' ', '')
+        ctx.set('pay', pay)
+    keyboard = (Keyboard(one_time=True)
+                .add(Text('Вперед',{'cmd':'get'}), color=KeyboardButtonColor.POSITIVE)
+                .add(Text('Изменить', {'cmd': 'reg'}), color=KeyboardButtonColor.SECONDARY)
                 )
-    # keyboard1 = (Keyboard(one_time=True)
-    #             .add(Text('Искать🔎', {'cmd': 'reg'}), color=KeyboardButtonColor.PRIMARY)
-    #             )
-    # запрос и сохранение ответа апи!роработка варианта действий  при недействительном токене! с блоком вакансий и колвом вакансий
-    # ---------------------------------------
+    await message.answer(f"Ваши параметры🎲:\nГород 🌁:{ctx.get('city')}\nПрофессия👨‍💻:{ctx.get('prof')}\nЗарплата💲 от: {ctx.get('pay')}\n Ожидайте выдачу🕒",keyboard=keyboard,attachment='photo-217363563_457239027')
+    await bot.state_dispenser.set(message.peer_id, SUBSDSATA.GO)
+
+#выдача 5 вакансий и переход в меню
+@bot.on.message(state=SUBSDSATA.GO,payload={'cmd':'get'})
+async def confirm_handler(message: Message):
+    keyboard0 = (Keyboard(one_time=False)
+                .add(OpenLink('https://vk.com/im?peers=-219487735&sel=-217363563','Перейти на сайт'),color=KeyboardButtonColor.PRIMARY)
+                .add(Text('Давай еще',{'cmd':'add'}), color=KeyboardButtonColor.SECONDARY)
+                .row()
+                .add(Text('Изменить',{'cmd':'edit'}), color=KeyboardButtonColor.PRIMARY)
+
+                .add(Text('В главное меню', {'cmd': 'menu'}), color=KeyboardButtonColor.PRIMARY)
+                 )
+
+    keyboard1=(Keyboard(one_time=False)
+                .add(Text('Изменить',{'cmd':'edit'}), color=KeyboardButtonColor.PRIMARY))
+
+# запрос и сохранение ответа апи!проработка варианта действий
+# при недействительном токене! с блоком вакансий и колвом вакансий
+# ---------------------------------------
     newvacancy = getinfo(ctx.get('prof'), ctx.get('city'), ctx.get('pay'))
-
-
     lenlist=len(newvacancy)
     ctx.set('newvacancy', newvacancy)
     ctx.set('len',lenlist)
 
-
-    # разбивка
-    # ------------------------------------------------
-    d=0
-    await message.answer(f"Ваши параметры🎲:\nГород 🌁:{ctx.get('city')}\nПрофессия👨‍💻:{ctx.get('prof')}\nЗарплата💲 от: {ctx.get('pay')}\n Ожидайте выдачу🕒",keyboard=keyboard)
-    ctx.set('num', d)
+# разбивка
+# -----------------------------------------------
+    ctx.set('num', 0)
+    ctx.set('subs', 0)
     try:
-        while d < 5 and d<=ctx.get("len") :
-                # if ctx.get("len") ==0:
-                #     await message.answer('Извините, мы не нашли вакансий согласно вашим параметрам\n Напишите "Начать"',keyboard=keyboard)
-                #     break
-                # elif ctx.get("len") < 5 and ctx.get("len")!=0:
-                #     await message.answer(f'Вакансия {ctx.get("num")+1} из {ctx.get("len")}:')
-                # else:
+            while ctx.get("num") < 5 and ctx.get("num")<=ctx.get("len") :
+                if ctx.get("num") == 0:
+                    with open('tokens.json', 'r') as f:
+                        dict = json.load(f)
+                    if int(dict['date_published']) < int(newvacancy[ctx.get("num")]['date_published']):
+                        dict['date_published'] = newvacancy[ctx.get("num")]['date_published']
+                        ctx.set('datpub0',newvacancy[ctx.get("num")]['date_published'])
+                    with open('tokens.json', 'w') as f:
+                        json.dump(dict, f)
                 await message.answer(f'Вакансия {ctx.get("num")+1} из {5}:')
-                print(newvacancy[ctx.get("num")])
                 profession = newvacancy[ctx.get("num")]['profession']
-                link = newvacancy[ctx.get("num")]['link']
+                time=int(newvacancy[ctx.get("num")]['date_published'])
 
+                link = newvacancy[ctx.get("num")]['link']
                 keyboard1=(Keyboard(inline=True)
                            .add(OpenLink(link,'Открыть🚀'))
                            )
-
-                payment = f"{newvacancy[ctx.get('num')]['payment_from']} - {newvacancy[ctx.get('num')]['payment_to']}"
+                if int(newvacancy[ctx.get('num')]['payment_from'])<int(ctx.get('pay')) and int(newvacancy[ctx.get('num')]['payment_from'])!=0 :
+                    payment = f"{ctx.get('pay')} - {newvacancy[ctx.get('num')]['payment_to']}"
+                else:
+                    payment = f"{newvacancy[ctx.get('num')]['payment_from']} - {newvacancy[ctx.get('num')]['payment_to']}"
                 if payment=='0 - 0':
                     payment='После собеседования'
                 company = newvacancy[ctx.get('num')]["firm_name"]
-                d += 1
-                ctx.set('num', d)
-                await message.answer (f"💼Вакансия: {profession} \n 🏙Компания:{company} \n 💲Условия оплаты: {payment} \n 🔜Оставить заявку и узнать подробне о вакансии:",keyboard=keyboard1)
-
-        ctx.set('num', 0)
-        await message.answer('Пока всё✔ Нажмите "Искать"',keyboard=keyboard)
+                ctx.set('num', ctx.get('num')+1)
+                await message.answer (f"💼Вакансия: {profession} \n 🏙Компания:{company} \n 💲Условия оплаты: {payment} \n🔜Оставить заявку и узнать подробне о вакансии:",keyboard=keyboard1)
+            await message.answer('Что дальше?',keyboard=keyboard0)
+            await bot.state_dispenser.set(message.peer_id, SUBSDSATA.CONT)
     except IndexError:
+        await message.answer('Извините, мы не нашли вакансий согласно вашим параметрам\n Давайте изменим "',keyboard=keyboard1)
+        await bot.state_dispenser.set(message.peer_id, SUBSDSATA.GET)
 
-        await message.answer('Извините, мы не нашли вакансий согласно вашим параметрам\n Напишите "Искать🔍"',keyboard=keyboard)
+#Главное меню
+@bot.on.message(state=SUBSDSATA.CONT,payload={'cmd':'menu'})
+async def Menu_handler(message: Message):
+    keyboard0 = (Keyboard(one_time=False)
+                 .add(OpenLink('https://vk.com/im?peers=-219487735&sel=-217363563', 'Перейти на сайт'),
+                      color=KeyboardButtonColor.PRIMARY)
+                 .add(Text('Давай еще', {'cmd': 'add'}), color=KeyboardButtonColor.SECONDARY)
+                 .row()
+                 .add(Text('Заново'), color=KeyboardButtonColor.NEGATIVE)
+                 .add(Text('Создать подписку',{'cmd':'subs'}), color=KeyboardButtonColor.POSITIVE))
+    keyboard1 = (Keyboard(one_time=False)
+                 .add(OpenLink('https://vk.com/im?peers=-219487735&sel=-217363563', 'Перейти на сайт'),
+                      color=KeyboardButtonColor.PRIMARY)
+                 .add(Text('Давай еще', {'cmd': 'add'}), color=KeyboardButtonColor.SECONDARY)
+                 .row()
+                 .add(Text('Заново'), color=KeyboardButtonColor.NEGATIVE)
+                 .add(Text('Отменить подписку', {'cmd': 'subs'}), color=KeyboardButtonColor.POSITIVE))
+    if ctx.get('subs')==False:
+        await message.answer('Вы в главном меню',keyboard=keyboard0)
+    elif ctx.get('subs')==True:
+        await message.answer('Вы в главном меню', keyboard=keyboard1)
+    await bot.state_dispenser.set(message.peer_id, SUBSDSATA.CONT)
+
+#доп выдача
+@bot.on.message(state=SUBSDSATA.CONT,payload={'cmd':'add'})
+async def ADD_handler(message: Message):
+    finish=ctx.get("num")
+    keyboard0 = (Keyboard(one_time=False)
+                 .add(Text('Давай еще', {'cmd': 'add'}), color=KeyboardButtonColor.SECONDARY)
+                 .add(Text('Назад',{'cmd': 'menu'}),color=KeyboardButtonColor.PRIMARY)
+                 )
+    keyboard2 = (Keyboard(one_time=False)
+                 .add(Text('Назад', {'cmd': 'menu'}), color=KeyboardButtonColor.PRIMARY)
+                 )
+    if finish+5<=ctx.get("len"):
+        while  ctx.get("num") < finish+5 and finish+5 <= ctx.get("len"):
+            await message.answer(f'Вакансия {ctx.get("num") + 1} из {finish+5}:')
+            profession = ctx.get('newvacancy')[ctx.get("num")]['profession']
+            time = int(ctx.get('newvacancy')[ctx.get("num")]['date_published'])
+            date = datetime.utcfromtimestamp(time).strftime('%Y-%m-%d %H:%M:%S')
+            link = ctx.get('newvacancy')[ctx.get("num")]['link']
+            company = ctx.get('newvacancy')[ctx.get('num')]["firm_name"]
+            keyboard1 = (Keyboard(inline=True)
+                     .add(OpenLink(link, 'Открыть🚀'))
+                     )
+            payment = f"{ctx.get('newvacancy')[ctx.get('num')]['payment_from']} - {ctx.get('newvacancy')[ctx.get('num')]['payment_to']}"
+            if payment == '0 - 0':
+                payment = 'После собеседования'
+            ctx.set('num', ctx.get("num")+1)
+            await message.answer(
+            f"💼Вакансия: {profession} \n 🏙Компания:{company} \n 💲Условия оплаты: {payment}\n🔜Оставить заявку и узнать подробне о вакансии:",
+            keyboard=keyboard1)
+        await message.answer(keyboard=keyboard0)
+        await bot.state_dispenser.set(message.peer_id, SUBSDSATA.CONT)
+    if finish + 5 > ctx.get("len"):
+        await message.answer('Упс, вакансий не осталось',keyboard=keyboard2)
+        ctx.set('num',0)
+        await bot.state_dispenser.set(message.peer_id, SUBSDSATA.CONT)
 
 
-#
-# @bot.on.message(text='Вперед')
-# async def scrolltoward(message:Message):
-#     keyboard = (Keyboard(one_time=True)
-#                 .add(Text('Назад',{'cmd':'back'}))
-#                 .add(Text('Отменить подписку❎',{'cmd':'reg'}))
-#                 .add(Text("Вперед ", {'cmd': 'next2'})))
-#
-#
-#     newvacancy = ctx.get('newvacancy')
-#     profession = newvacancy[ctx.get("num")]['profession']
-#     link = newvacancy[ctx.get("num")]['link']
-#     payment = f"{newvacancy[ctx.get('num')]['payment_from']} - {newvacancy[ctx.get('num')]['payment_to']}"
-#     company = newvacancy[ctx.get('num')]["firm_name"]
-#
-#     time.sleep(2)
-#     await message.answer(f'Вакансия {ctx.get("num")+1} из {ctx.get("len")}:')
-#     await message.answer( f"💼Вакансия: {profession} \n 🏙Компания:{company} \n 💲Условия оплаты: {payment} \n 🔜Оставить заявку и узнать подробне о вакансии:\n {link} ",keyboard=keyboard)
-#
 
-# @bot.on.message(payload={'cmd':'next2'})
-# async def scrolltoward(message:Message):
-#
-#     keyboard = (Keyboard(one_time=True)
-#                 .add(Text('Назад',{'cmd':'back'}))
-#                 .add(Text('Отменить подписку❎',{'cmd':'reg'}))
-#                 .add(Text("Вперед ", {'cmd': 'next1'})))
-#
-#     i=ctx.get('num')
-#     i =i+1
-#     ctx.set('num', i)
-#     newvacancy = ctx.get('newvacancy')
-#     profession = newvacancy[ctx.get("num")]['profession']
-#     link = newvacancy[ctx.get("num")]['link']
-#     payment = f"{newvacancy[ctx.get('num')]['payment_from']} - {newvacancy[ctx.get('num')]['payment_to']}"
-#     company = newvacancy[ctx.get('num')]["firm_name"]
-#
-#     await message.answer(f'Вакансия {ctx.get("num")+1} из {ctx.get("len")}:')
-#     await message.answer(f"💼Вакансия: {profession} \n 🏙Компания:{company} \n 💲Условия оплаты: {payment} \n 🔜Оставить заявку и узнать подробне о вакансии:\n {link} ", keyboard=keyboard)
-#
-#
+#Оформление подписки
+@bot.on.message(state=SUBSDSATA.CONT,payload={'cmd':'subs'})
+async def subs_handler(message: Message):
+    keyboard0=(Keyboard(one_time=False)
+                 .add(Text('Назад', {'cmd': 'menu'}), color=KeyboardButtonColor.PRIMARY)
+                 )
+    if ctx.get('subs')!=False and ctx.get('subs')!=True :
+        ctx.set('subs',True)
+        await message.answer('Подписка создана',keyboard=keyboard0)
+        await bot.state_dispenser.set(message.peer_id, SUBSDSATA.CONT)
+    if ctx.get('subs') != False:
+        ctx.set('subs', True)
+        await message.answer('Подписка создана', keyboard=keyboard0)
+        await bot.state_dispenser.set(message.peer_id, SUBSDSATA.CONT)
+
+    if ctx.get('subs') == True:
+        ctx.set('subs', False)
+        await message.answer('Подписка отменена',keyboard=keyboard0)
+        await bot.state_dispenser.set(message.peer_id, SUBSDSATA.CONT)
 
 
 
@@ -235,25 +291,6 @@ async def initial_handler(message:Message):
 
 
 
-
-# @bot.on.message(payload={'cmd':'back'})
-# async def scrollbackward(message:Message):
-#     keyboard = (Keyboard(one_time=True)
-#                     .add(Text('Назад', {'cmd':'back'}))
-#                     .add(Text('Отменить подписку❎',{'cmd':'reg'}))
-#                     .add(Text("Вперед", {'cmd':'next'}))
-#                     )
-#     i = ctx.get('num')
-#     i =i-1
-#     ctx.set('num', i)
-#     newvacancy = ctx.get('newvacancy')
-#     profession = newvacancy[ctx.get("num")]['profession']
-#     link = newvacancy[ctx.get("num")]['link']
-#     payment = f"{newvacancy[ctx.get('num')]['payment_from']} - {newvacancy[ctx.get('num')]['payment_to']}"
-#     company = newvacancy[ctx.get('num')]["firm_name"]
-#     time.sleep(2)
-#     await message.answer(f'Вакансия {ctx.get("num") + 1} из {ctx.get("len")}:')
-#     await message.answer(f"💼Вакансия: {profession} \n 🏙Компания:{company} \n 💲Условия оплаты: {payment} \n 🔜Оставить заявку и узнать подробне о вакансии:\n {link} ",keyboard=keyboard)
 
 
 
