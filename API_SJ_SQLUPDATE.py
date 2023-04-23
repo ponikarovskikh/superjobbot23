@@ -3,90 +3,14 @@ import json
 import  time
 import sqlite3
 from urllib.parse import *
-
-#  Api-БЛОК Superjob
-# ======================================================================================================
-
-def update_api_keys():
-    access_token, refresh_token, client_secret, client_id, token_group = sql_get_api_keys_info()
-    params = {
-        "refresh_token": refresh_token,
-        "client_id": client_id,
-        "client_secret": client_secret
-    }
-    url = "https://api.superjob.ru/2.0/oauth2/refresh_token/"
-    response = requests.get(url, params=params)
-    resjson = response.json()
-    access_token = resjson['access_token']
-    sql_update_api_keys(access_token)
-    # with open('tokens.json', 'r') as f:
-    #     dict = json.load(f)
-    # dict['access_token']=acc
-    # with open('tokens.json', 'w') as f:
-    #     json.dump(dict, f)
-    return  access_token
+import aiosqlite
+import aiohttp
 
 
-
-def get_vacancy_objects(keyword, town, payment):
-        # идентификация
-        # ======================================================
-        # with open('tokens.json', 'r') as f:
-        #     dict = json.load(f)
-        # api_key=dict['access_token']
-        # app_id=dict['client_secret']
-        access_token, refresh_token, client_secret, client_id, token_group=sql_get_api_keys_info()
-        # --------------------------------------------------------
-        params = {
-            'payment_from': f'{payment}',
-            "sort_new": time.time(),
-            "keyword": f"{keyword}",
-            "town": f'{town}'
-        }
-        headers = {
-            'X-Api-App-Id': client_secret,
-            'Authorization': f"Bearer {access_token}"
-        }
-        url = "https://api.superjob.ru/2.0/vacancies/"
-        response = requests.get(url, headers=headers, params=params ).json()
-        resjson_form = json.dumps(response, ensure_ascii=False, indent=2)
-        # ===========================================================
-        if 'error' in resjson_form:
-            if response['error']['code'] == 410:  # обработка ошибки 410
-                update_api_keys()  # функция для получения нового ключа
-                get_vacancy_objects(keyword, town, payment)
-        elif 'objects' in resjson_form:
-            pyform = json.loads(resjson_form)
-            newvacancy=pyform['objects']
-            return newvacancy
-
-
-
-#
-#
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                        # SQL-БЛОК
 # =====================================================================================================================
-# ||||                         КЛЮЧИ                             |||||||
-# ----------------------------------------------------------------
-# создание таблицы со всеми ключами для api
+#                                            КЛЮЧИ                                                      #
+# ------------------------------------------------------------------------------------------------------#
+# 0.1.создание таблицы со всеми ключами для api
 def sqlkeysbaseinfo():
     conn = sqlite3.connect('sjbase0.db')
     cursor = conn.cursor()
@@ -109,19 +33,15 @@ def sqlkeysbaseinfo():
     cursor.execute(query)
     conn.commit()
 
-# получение актуальной информации о ключах к апи и группе
-def sql_get_api_keys_info():
-    conn = sqlite3.connect('sjbase0.db')
-    cursor = conn.cursor()
-    query = f"SELECT access_token, refresh_token, client_secret, client_id,token_group FROM sj_keyss WHERE client_id='{2100}'"
-    cursor.execute(query)
-    data = cursor.fetchone()
+# 1.1получение актуальной информации о ключах к апи и группе
+async def sql_get_api_keys_info():
+    conn = await aiosqlite.connect('sjbase0.db')
+    async with conn.execute(f"SELECT access_token, refresh_token, client_secret, client_id, token_group FROM sj_keyss WHERE client_id='{2100}'") as cursor:
+        data = await cursor.fetchone()
+    await conn.close()
     return data
 
-
-
-
-# занесение в базу после обновления ключа access_token
+# 1.1.занесение в базу после обновления ключа access_token
 def sql_update_api_keys(access_token):
     conn = sqlite3.connect('sjbase0.db')
     cursor = conn.cursor()
@@ -129,19 +49,7 @@ def sql_update_api_keys(access_token):
     cursor.execute(query)
     conn.commit()
 
-
-
-
-
-    # if access_token==True and client_secret==True:
-    #     access_token, refresh_token, client_secret, client_id, token_group=data
-    #     return access_token,client_secret
-    # Печатаем данные
-    # if data is not None:
-    #     access_token, refresh_token, client_secret, client_id,token_group = data
-    #     print(f"access_token:{access_token}, refresh_token:{refresh_token}, client_secret:{client_secret},client_id:{client_id},token_group:{token_group}")
-    #
-# получение токена группы из базы данных
+# 1.2.олучение токена группы из базы данных
 def sql_get_token_group_vk():
     conn = sqlite3.connect('sjbase0.db')
     cursor = conn.cursor()
@@ -151,47 +59,6 @@ def sql_get_token_group_vk():
     idgroup = data
     return idgroup
 
-# --------------------------------------------------------------------------------------------------------
-
-
-
-
-
-
-# -----------------------------------------------------------
-# БД Пользователей                                      |||||
-# -----------------------------------------------------------
-# создание таблицы для хранения инфы о пользвателях
-def conn_to_dbifousers():
-    conn = sqlite3.connect('sjbase0.db')
-    cursor = conn.cursor()
-    # Создаем таблицу "users", если ее еще нет в базе данных
-    cursor.execute("""CREATE TABLE IF NOT EXISTS sj_table0 (
-                             id INTEGER ,
-                             prof TEXT,
-                             city TEXT,
-                             salary TEXT)""")
-    conn.commit()
-
-
-
-
-def e45():
-    # подключаемся к базе данных
-    conn = sqlite3.connect('sjbase0.db')
-    cursor = conn.cursor()
-
-    # добавляем колонку "статус подписки"
-    cursor.execute('ALTER TABLE sj_subs_users ADD COLUMN latestid TEXT;')
-
-    # добавляем колонку "позиция"
-    cursor.execute('ALTER TABLE sj_subs_users ADD COLUMN maxposition INTEGER;')
-
-    # сохраняем изменения в базе данных
-    conn.commit()
-
-    # закрываем соединение
-    conn.close()
 
 
 
@@ -205,7 +72,68 @@ def e45():
 
 
 
-# созданик таблицы для хранения информации о юзерах
+
+
+
+
+                                            #  Api-БЛОК Superjob
+# ======================================================================================================
+# обновление ключа access_token
+async def update_api_keys():
+        access_token, refresh_token, client_secret, client_id, token_group = await sql_get_api_keys_info()
+
+        params = {
+            "refresh_token": refresh_token,
+            "client_id": client_id,
+            "client_secret": client_secret
+        }
+        url = "https://api.superjob.ru/2.0/oauth2/refresh_token/"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, params=params) as response:
+                resjson = await response.json()
+        access_token = resjson['access_token']
+        sql_update_api_keys(access_token)
+        return access_token
+
+# выдача вакансий единым массивом
+async def get_vacancy_objects(keyword, town, payment):
+    access_token, refresh_token, client_secret, client_id, token_group = await sql_get_api_keys_info()
+    # --------------------------------------------------------
+    params = {
+    'payment_from': f'{payment}',
+    "sort_new": time.time(),
+    "keyword": f"{keyword}",
+    "town": f'{town}'
+    }
+    headers = {
+    'X-Api-App-Id': client_secret,
+    'Authorization': f"Bearer {access_token}"
+    }
+    url = "https://api.superjob.ru/2.0/vacancies/"
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url, headers=headers, params=params) as response:
+            resjson_form = await response.json()
+    # ===========================================================
+    if 'error' in resjson_form:
+        if resjson_form['error']['code'] == 410: # обработка ошибки 410
+            await update_api_keys() # функция для получения нового ключа
+            await get_vacancy_objects(keyword, town, payment)
+    elif 'objects' in resjson_form:
+            newvacancy = resjson_form['objects']
+            return newvacancy
+
+
+
+
+
+                                                        # SQL-БЛОК
+
+
+# ---------------------------------------------------------------------------------------------------------#
+#                                 БД Пользователей и выдача вакансий                                       #
+# ---------------------------------------------------------------------------------------------------------#
+
+# 0.1 создание таблицы для хранения информации о юзерах
 def createtableusers():
     conn = sqlite3.connect('sjbase0.db')
     cursor = conn.cursor()
@@ -216,12 +144,12 @@ def createtableusers():
                                      profession TEXT,
                                      salary TEXT,
                                     status TEXT, position INTEGER,
-                                    latestid TEXT,
+                                    lastid INTEGER,
                                     maxposition INTEGER)""")
 
     conn.commit()
 
-# забив сначала id и города(включая проверку на наличие ифнормации по id)
+# 1.1забив сначала id и города(включая проверку на наличие ифнормации по id)
 def sql_save_info_city(iduser,city):
     conn = sqlite3.connect('sjbase0.db')
     cursor = conn.cursor()
@@ -240,7 +168,7 @@ def sql_save_info_city(iduser,city):
         cursor.execute(query)
     conn.commit()
 
-# вставка професии
+# 1.2.вставка професии
 def sql_save_info_prof(iduser,prof):
     conn = sqlite3.connect('sjbase0.db')
     cursor = conn.cursor()
@@ -248,7 +176,7 @@ def sql_save_info_prof(iduser,prof):
     cursor.execute(query)
     conn.commit()
 
-# вставка зарплаты
+# 1.3.вставка зарплаты
 def sql_save_info_salary(iduser,sal):
     conn = sqlite3.connect('sjbase0.db')
     cursor = conn.cursor()
@@ -256,7 +184,7 @@ def sql_save_info_salary(iduser,sal):
     cursor.execute(query)
     conn.commit()
 
-# выгрузка данных по id пользователя
+# 2.1.выгрузка данных по id пользователя
 def sql_get_user_info(iduser):
     conn = sqlite3.connect('sjbase0.db')
     cursor = conn.cursor()
@@ -266,8 +194,7 @@ def sql_get_user_info(iduser):
     profession, city, salary = data
     return  profession, city, salary
 
-
-# сохранение лимита на прокрутку вакансий (длина массива)
+# 2.2.сохранение лимита на прокрутку вакансий (длина массива)
 def sql_position_limit_set(iduser,maxposition):
     conn = sqlite3.connect('sjbase0.db')
     cursor = conn.cursor()
@@ -279,7 +206,7 @@ def sql_position_limit_set(iduser,maxposition):
         cursor.execute(query)
         conn.commit()
 
-# полуение длины списка вакансий
+# 2.3.полуение длины списка вакансий
 def sql_position_limit_get(iduser):
     conn = sqlite3.connect('sjbase0.db')
     cursor = conn.cursor()
@@ -289,7 +216,7 @@ def sql_position_limit_get(iduser):
     limit = data
     return limit[0]
 
-# получение текущего местоположения пользователя на списке выдачи вакансий
+# 2.4.получение текущего местоположения каретки просмотра пользователя на списке выдачи вакансий
 def sql_position_giving_vacancies(iduser):
     conn = sqlite3.connect('sjbase0.db')
     cursor = conn.cursor()
@@ -311,7 +238,7 @@ def sql_position_giving_vacancies(iduser):
     position=data
     return position[0]
 
-# переход пользователя по списку выдачи выкансий по запросу
+# 2.5.переход каретки просмотра пользователя по списку выдачи выкансий по запросу
 def sql_change_position(iduser,inkrem):
     conn = sqlite3.connect('sjbase0.db')
     cursor = conn.cursor()
@@ -324,153 +251,32 @@ def sql_change_position(iduser,inkrem):
         cursor.execute(query)
         conn.commit()
 
-
-
-
-# БЛОК ПОДПИСКИ
-# ---------------------------------------------------------------------------------
-# установление статуса подписки
-def sql_subscribe_status_set(iduser,status):
-    # подключение к базе данных
+# сохранение первой вакансии по выдачи с 0 адресом для дальнейшей подписки
+def sql_save_lastid_vcncy(iduser,lastid):
     conn = sqlite3.connect('sjbase0.db')
-    # создание объекта-курсора
     cursor = conn.cursor()
-    # SQL-запрос для получения списка всех названий колонок в таблице
-    query = f"UPDATE sj_subs_users SET status = '{status}' WHERE iduser = '{iduser}'"
+    query = f"UPDATE sj_subs_users SET lastid = '{lastid}' WHERE iduser = '{iduser}'"
     cursor.execute(query)
     conn.commit()
 
 
-# проверка на подписку
-def sql_subscribe_status_get(iduser):
-    # подключение к базе данных
+# -------------------------------------------------------------------------------------------------------#
+#                               БЛОК ПЕРЕХОДА НА САЙТ                                                    #
+# -------------------------------------------------------------------------------------------------------#
+def sql_city_ids(city):#проблема с питером
     conn = sqlite3.connect('sjbase0.db')
-    # создание объекта-курсора
     cursor = conn.cursor()
-    query = f"SELECT status FROM sj_subs_users WHERE iduser='{iduser}'"
+    if city=='CПБ':
+        city='Спб'
+    query = f"SELECT id,title FROM idcity WHERE title LIKE '{city}'"
+
     cursor.execute(query)
     data = cursor.fetchone()
     return data[0]
 
-
-
-def subspost():
-    access_token, refresh_token, client_secret, client_id, token_group = sql_get_api_keys_info()
-    params = {
-        'name':'чзх',
-        "payment_from": 10000,
-        # "sort_new": time.time(),
-        "keyword": "Водитель",
-        "town": "Москва"
-
-    }
-    headers = {
-        'X-Api-App-Id': client_secret,
-        'Authorization': f"Bearer {access_token}"
-    }
-    url = "https://api.superjob.ru/2.0/subscriptions/"
-    url_encoded_params = urlencode(params)
-    response = requests.post(url, headers=headers, params=url_encoded_params).json()
-    print(response)
-
-#
-# print(subspost())
-
-
-def subsdelete():
-    access_token, refresh_token, client_secret, client_id, token_group = sql_get_api_keys_info()
-
-    headers = {
-        'X-Api-App-Id': client_secret,
-        'Authorization': f"Bearer {access_token}"
-    }
-    url = "https://api.superjob.ru/2.0/subscriptions/56323207"
-    response = requests.delete(url, headers=headers).json()
-
-    print(response)
-
-# print(subsdelete())
-
-
-def subs_get_check():
-    access_token, refresh_token, client_secret, client_id, token_group = sql_get_api_keys_info()
-
-    headers = {
-        'X-Api-App-Id': client_secret,
-        'Authorization': f"Bearer {access_token}"
-    }
-    url = "https://api.superjob.ru/2.0/subscriptions/56323243"
-    response = requests.get(url, headers=headers).json()
-
-    print(response)
-# print(subs_get_check())
-
-
-#56323213 56323213 56323207
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# БЛОК ПЕРЕХОДА НА САЙТ
-# --------------------------------------------------------------------------
-def sql_city_ids(city):
-    conn = sqlite3.connect('sjbase0.db')
-    cursor = conn.cursor()
-    if city == 'Санкт-Петербург':
-        query = f"SELECT id FROM idcity WHERE title='Санкт-Петербург'"
-        cursor.execute(query)
-        data = cursor.fetchone()
-        return data[0]
-    elif city == 'Ростов-на-Дону':
-        query = f"SELECT id FROM idcity WHERE title='Ростов-на-Дону'"
-        cursor.execute(query)
-        data = cursor.fetchone()
-        return data[0]
-    else:
-        query = f"SELECT id FROM idcity WHERE title='{city}'"
-        cursor.execute(query)
-        data = cursor.fetchone()
-        return data[0]
-print(sql_city_ids('Санкт-Петербург'))
+# print(sql_city_ids('Спб'))
 #забить таблицу для перехода на сайт
 # создание и сохранение ссылки в бд ссылки на сайт согласно нашим параметрам
-def sql_create_link(iduser,prof,sal,city):
-    base_url = 'https://www.superjob.ru/vacancy/search/'
-
-    idcity=sql_city_ids(city) #получение id города
-    print(idcity)
-    params = {'keywords': prof, 'geo[t][0]':idcity, 'payment_from': f'{sal}'}
-    url = base_url + '?' + urlencode(params)
-    sql_savelink_user_set(iduser,url)
-
 def sql_savelink_user_set(iduser,link):
     conn = sqlite3.connect('sjbase0.db')
     cursor = conn.cursor()
@@ -481,6 +287,14 @@ def sql_savelink_user_set(iduser,link):
     conn.commit()
     # Закрываем соединение
     conn.close()
+def sql_create_link(iduser,prof,sal,city):
+    base_url = 'https://www.superjob.ru/vacancy/search/'
+
+    idcity=sql_city_ids(city) #получение id города
+    print(idcity)
+    params = {'keywords': prof, 'geo[t][0]':idcity, 'payment_from': f'{sal}'}
+    url = base_url + '?' + urlencode(params)
+    sql_savelink_user_set(iduser,url)
 
 # получение сылки пользоват
 def sql_savelink_user_get(iduser):
@@ -491,9 +305,7 @@ def sql_savelink_user_get(iduser):
     data = cursor.fetchone()
     link = data
     return link[0]
-
-
-# загузка городов из апи в базу данных
+# 0.1.загузка городов из апи в базу данных
 def cityall():
     req=requests.get('https://api.superjob.ru/2.0/towns/?all=1&id_country=1')
     resjson = req.json()
@@ -505,59 +317,272 @@ def cityall():
 
     # Сохранение изменений
     conn.commit()
-
-
-# print(sql_create_link('Водитель',10000,'Пермь'))
-
-
-# ------------------------------------------------------------------------------
-
-
-
-
-
-# увидеть все элементы
-def t65():
-    # # подключение к базе данных
-    # conn = sqlite3.connect('sjbase0.db')
-    #
-    # # создание объекта-курсора
-    # cursor = conn.cursor()
-    #
-    # # SQL-запрос для очистки таблицы
-    # query = "DELETE FROM sj_subs_users"
-    # cursor.execute(query)
-    #
-    # # подтверждение изменений
-    # conn.commit()
-    #
-    # # закрытие соединения
-    # conn.close()
-    # подключение к базе данныхsj_subs_users
+def ng():
     conn = sqlite3.connect('sjbase0.db')
-
-    # создание объекта-курсора
     cursor = conn.cursor()
 
-    # SQL-запрос для получения всех строк из таблицы
-    query = "SELECT * FROM idcity"
+# ---------------------------------------------------------------------------------------------------------#
+#                                                БЛОК ПОДПИСКИ                                             #
+# ---------------------------------------------------------------------------------------------------------#
+def sqlcreatetablesubs():
+    # Создаем подключение к базе данных
+    conn = sqlite3.connect('sjbase0.db')
+
+    # Создаем объект "курсор"
+    cursor = conn.cursor()
+
+    # Создаем таблицу
+    cursor.execute('''CREATE TABLE sjsubscript (
+                    id INTEGER,
+                    city TEXT,
+                    salary INTEGER,
+                    profession TEXT,
+                    status INTEGER,
+                    subscriptions INTEGER,
+                    lastid INTEGER
+                    )''')
+
+    # Сохраняем изменения
+    conn.commit()
+
+    # Закрываем соединение
+    conn.close()
+# print(sqlcreatetablesubs())
+
+
+# перегон параметров в бд sjsubscript и дальнейшее установление статуса подписки(1 или 0)
+def sql_subscribe_status_set(iduser,status):
+    #
+    # загрузка инфы из бд subsusers
+    conn = sqlite3.connect('sjbase0.db')
+    cursor = conn.cursor()
+    query = f"SELECT profession, city, salary,lastid FROM sj_subs_users WHERE iduser='{iduser}'"
     cursor.execute(query)
+    data = cursor.fetchone()
+    profession1, city1, salary1,lastid1=data
 
-    # получение всех строк
-    rows = cursor.fetchall()
+    # Проверяем наличие информации в БД sjsubscript по id
+    query = f"SELECT status,salary,city,profession,lastid FROM sjsubscript WHERE iduser = '{iduser}'"
+    cursor.execute(query)
+    result = cursor.fetchone()
+    # Если информация уже есть, то обновляем ее, иначе создаем новую запись
+    # если создаем подписку
+    if result is not None:
+        print(1)
+        status2, salary2, city2, profession2,lastid2 = result
+        if status==1 and status2==1:
+            print(1.1)
+            if salary2 is not None and city2 is not None and profession2 is not None and lastid2 is not None:
+                print(1.2)
+                # print(profession1, profession2 ,city1,city2 ,type(salary1),type(salary2))
+                if profession1!=profession2 or city1!=city2 or int(salary1)!=int(salary2) :
+                    print(1.3)
+                    query = f"UPDATE sjsubscript SET status='{status}',city = '{city1}',lastid = '{lastid1}',salary = '{salary1}',profession='{profession1}'WHERE iduser = '{iduser}'"
+                    cursor.execute(query)
+                    conn.commit()
+                    # print('Данные подписки успешно обновлены')
+                    return 1
+                elif profession1 == profession2 and city1 == city2 and int(salary1) == int(salary2):
+                    # print(1.4)
+                    # query = f"UPDATE sjsubscript SET status='{status}' WHERE iduser = '{iduser}'"
+                    # cursor.execute(query)
+                    # conn.commit()
+                    # print('Извините,Вы уже подписались на рассылку с такими параметрами')
+                    return 2
+        elif status == 1 and status2 == 0:
+            print(2.1)
+            if salary2 is not None and city2 is not None and profession2 is not None and lastid2 is not None:
+                print(2.2)
+                if profession1 == profession2 and city1 == city2 and int(salary1) == int(salary2):
+                    query = f"UPDATE sjsubscript SET status='{status}' WHERE iduser = '{iduser}'"
+                    cursor.execute(query)
+                    conn.commit()
+                    # print('Подписка по прежним параметры возоблена')
+                    return 3
+                elif profession1 != profession2 or city1 != city2 or int(salary1) != salary2:
+                    print(2.3)
+                    query = f"UPDATE sjsubscript SET status='{status}',city = '{city1}',lastid = '{lastid1}',salary = '{salary1}',profession='{profession1}'WHERE iduser = '{iduser}'"
+                    cursor.execute(query)
+                    conn.commit()
+                    # print('Подписка активна, свойства обновлены')
+                    return 4
+        # если хотим отменить подписку
+        elif status==0 and status2==1:
+            print(3.1)
+            query = f"UPDATE sjsubscript SET status='{status}' WHERE iduser = '{iduser}'"
+            cursor.execute(query)
+            conn.commit()
+            # print('Рассылка отменена( \nВы всегда можете снова подписаться')
+            return 5
 
-    # вывод всех строк
-    for row in rows:
-        print(row)
+    elif result is None:
+        print(4)
+        query = f"INSERT INTO sjsubscript (status,salary,iduser,city,profession,lastid) VALUES" \
+                f" ('{status}', '{salary1}','{iduser}', '{city1}','{profession1}','{lastid1}')"
+        cursor.execute(query)
+        conn.commit()
+        # print('Вы подписались на рассылку!\nДанные зарегистрированы')
+        return 6
 
-    # закрытие соединения
+    # мой айди вк 230352030
+
+
+
+# проверка на подписку
+def sql_subscribe_status_get(iduser):
+    # подключение к базе данных
+    conn = sqlite3.connect('sjbase0.db')
+    # создание объекта-курсора
+    cursor = conn.cursor()
+    query = f"SELECT iduser,status,salary,city,profession,lastid FROM sjsubscript WHERE iduser = '{iduser}'"
+    cursor.execute(query)
+    result = cursor.fetchone()
+    # status2, salary2, city2, proffession2, subscriptions2, lastid2 = result
+    return result[1]
+# получение всей инфы о подписке из отдела sjscript
+def sql_allinfo_subscribe_status_get(iduser):
+    # подключение к базе данных
+    conn = sqlite3.connect('sjbase0.db')
+    # создание объекта-курсора
+    cursor = conn.cursor()
+    query = f"SELECT iduser,status,salary,city,profession,lastid FROM sjsubscript WHERE iduser = '{iduser}'"
+    cursor.execute(query)
+    result = cursor.fetchone()
+    if result is None:
+
+        # status2, salary2, city2, proffession2, subscriptions2, lastid2 = result
+        return None
+    else:
+        return result
+# print(sql_allinfo_subscribe_status_get(230352030))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Функциональные запросы для работы с БД
+#===========================================
+# увидеть заголовки элементов sj_subs_users
+def all_titles_check():
+    conn = sqlite3.connect('sjbase0.db')
+    cursor = conn.cursor()
+    sql = f"PRAGMA table_info(sj_subs_users)"
+    cursor.execute(sql)
+    result = cursor.fetchall()
+    print(result)
+# print(all_titles_check())
+
+
+# колонки талицы sj_subs_users
+# iduser
+# city
+# profession
+# salary
+# position
+# maxposition
+# link
+# lastid
+
+# колонки sjsubscript
+# city
+# salary
+# profession
+# status
+# subscriptions
+# lastid
+# iduser
+
+#idcity города и коды
+
+# удалить столбец
+def deletecolumn():
+        conn = sqlite3.connect('sjbase0.db')
+        cursor = conn.cursor()
+# # Выполняем SQL-запрос на удаление столбцов
+        cursor.execute('ALTER TABLE sjsubscript DROP COLUMN id')
+        conn.commit()
+# print(deletecolumn())
+
+#добавить столбцы
+def createcolums():
+    # подключаемся к базе данных
+    conn = sqlite3.connect('sjbase0.db')
+    cursor = conn.cursor()
+
+    # добавляем колонку "статус подписки"
+    cursor.execute('ALTER TABLE sjsubscript ADD COLUMN iduser INTEGER;')
+
+    # добавляем колонку "позиция"
+    # cursor.execute('ALTER TABLE sj_subs_users ADD COLUMN maxposition INTEGER;')
+
+    # сохраняем изменения в базе данных
+    conn.commit()
+
+    # закрываем соединение
+    conn.close()
+# print(createcolums())
+
+
+
+def sqlgetlastid(iduser):
+    conn = sqlite3.connect('sjbase0.db')
+    cursor = conn.cursor()
+    query = f"SELECT lastid FROM sj_subs_users WHERE iduser={iduser}"
+
+    cursor.execute(query)
+    data = cursor.fetchone()
+    lasid=data
+    return lasid[0]
+# print(sqlgetlastid(230352030))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# print(t65())
+
+
+def t64():
+    conn = sqlite3.connect('sjbase0.db')
+    cursor = conn.cursor()
+    # Выполняем SQL-запрос для создания новой колонны
+    query = f"UPDATE idcity SET title = 'Спб' WHERE id = '{14}'"
+    cursor.execute(query)
+    # Сохраняем изменения в базе данных
+    conn.commit()
+    # Закрываем соединение
     conn.close()
 
-
-
-
-
-
-
-
-
+# print(t64())
