@@ -11,7 +11,8 @@ global bot
 
 async def bot_loop():
     bot=Bot(token=sql_get_token_group_vk())
-
+    x=1
+    x=3
 # обьявление переменных для маршрута сбора пользовательской инфы
     class SUBSDSATA(BaseStateGroup):
         CITY=0
